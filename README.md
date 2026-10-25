@@ -33,16 +33,3 @@ pytest
 
 The application package lives in `src/temperature_notifier`; deployment
 dependencies are in `src/requirements.txt`.
-
-Before the first invocation, create these SSM Parameter Store parameters in the
-same AWS Region as the stack:
-
-| Name | Type | Value |
-| --- | --- | --- |
-| `/temperature-notifier/slack-webhook-url` | `SecureString` | Slack incoming-webhook URL |
-| `/temperature-notifier/lat` | `SecureString` | Latitude |
-| `/temperature-notifier/lon` | `SecureString` | Longitude |
-| `/temperature-notifier/is-inside` | `String` | `true` or `false` |
-
-`/temperature-notifier/is-inside` is updated by the function after it sends a
-notification, preventing duplicate messages on subsequent daily invocations.
