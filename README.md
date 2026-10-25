@@ -20,7 +20,19 @@ The template creates an EventBridge Scheduler schedule that invokes the function
 once per day at 6:30 AM. It defaults to `America/New_York`, including daylight
 saving-time changes.
 
-The Lambda handler is `main.lambda_handler`.
+The Lambda handler is `temperature_notifier.main.lambda_handler`.
+
+## Tests
+
+Install test dependencies and run the isolated unit tests with:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+pytest
+```
+
+The application package lives in `src/temperature_notifier`; deployment
+dependencies are in `src/requirements.txt`.
 
 Before the first invocation, create these SSM Parameter Store parameters in the
 same AWS Region as the stack:

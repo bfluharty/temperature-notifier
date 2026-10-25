@@ -12,8 +12,9 @@ Resources:
   TemperatureNotifierFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: .
-      Handler: main.lambda_handler
+      FunctionName: temperature-notifier
+      CodeUri: src
+      Handler: temperature_notifier.main.lambda_handler
       Runtime: python3.12
       Timeout: 30
       MemorySize: 128
