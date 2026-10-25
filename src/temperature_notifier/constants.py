@@ -17,3 +17,6 @@ FORECAST_TIMEZONE: Final[str] = "auto"
 # Persisted battery-state values.
 STATE_INSIDE: Final[str] = "true"
 STATE_OUTSIDE: Final[str] = "false"
+
+# Slack handle
+SLACK_HANDLE: Final[str] = "<@U0CBULW92VC>"

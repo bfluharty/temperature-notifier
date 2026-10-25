@@ -15,6 +15,7 @@ from .constants import (
     LATITUDE_PARAMETER,
     LONGITUDE_PARAMETER,
     REQUEST_TIMEOUT_SECONDS,
+    SLACK_HANDLE,
     SLACK_WEBHOOK_PARAMETER,
     STATE_INSIDE,
     STATE_OUTSIDE,
@@ -97,12 +98,12 @@ def _action_for_conditions(
     if inside_state == STATE_OUTSIDE and (
         minimum < lower_bound or maximum > upper_bound
     ):
-        return "Bring in batteries", STATE_INSIDE
+        return f" {SLACK_HANDLE} Bring in batteries", STATE_INSIDE
 
     if inside_state == STATE_INSIDE and (
         minimum >= lower_bound and maximum <= upper_bound
     ):
-        return "Take out batteries", STATE_OUTSIDE
+        return f" {SLACK_HANDLE} Take out batteries", STATE_OUTSIDE
 
     return "No action needed", None
 
