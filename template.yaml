@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Scheduled temperature-based battery notification.
+
+Parameters:
+  ScheduleTimeZone:
+    Type: String
+    Default: America/New_York
+    Description: IANA timezone in which 6:30 AM should occur (handles daylight saving time).
+
+Resources:
+  TemperatureNotifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: main.lambda_handler
+      Runtime: python3.12
+      Timeout: 30
+      MemorySize: 128
+      Architectures:
+        - arm64
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - SSMParameterReadPolicy:
+            ParameterName: temperature-notifier/*
+        - Statement:
+            - Effect: Allow
+              Action: ssm:PutParameter
+              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/temperature-notifier/is-inside
+      Events:
+        DailyTemperatureCheck:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(30 6 * * ? *)
+            ScheduleExpressionTimezone: !Ref ScheduleTimeZone
+            FlexibleTimeWindow:
+              Mode: 'OFF'
+            State: ENABLED
+
+  TemperatureNotifierLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${TemperatureNotifierFunction}
+      RetentionInDays: 30
+
+Outputs:
+  TemperatureNotifierFunctionName:
+    Description: Lambda function name
+    Value: !Ref TemperatureNotifierFunction

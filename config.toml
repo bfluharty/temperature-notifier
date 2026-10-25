@@ -1,0 +1,7 @@
+# config.toml
+
+forecast_length = 24
+
+[temperature]
+min = 50
+max = 90
