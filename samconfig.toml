@@ -13,11 +13,9 @@ s3_prefix = "temperature-notifier"
 region = "us-east-1"
 confirm_changeset = false
 capabilities = [ "CAPABILITY_IAM", "CAPABILITY_NAMED_IAM" ]
-disable_rollback = true
+disable_rollback = false
 image_repositories = [ ]
-
-  [default.deploy.parameters.parameter_overrides]
-  ScheduleTimeZone = "America/New_York"
+parameter_overrides = "ScheduleTimeZone=America/New_York"
 
 [default.global.parameters]
 stack_name = "temperature-notifier"

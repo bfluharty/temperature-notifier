@@ -20,6 +20,10 @@ Resources:
       MemorySize: 128
       Architectures:
         - arm64
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: INFO
+        SystemLogLevel: INFO
       Policies:
         - AWSLambdaBasicExecutionRole
         - SSMParameterReadPolicy:

@@ -23,6 +23,7 @@ from .constants import (
 from .ssm_utils import get_value, set_value
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_forecast() -> dict[str, Any]:
