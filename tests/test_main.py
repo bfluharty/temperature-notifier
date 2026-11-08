@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC
 from datetime import datetime as real_datetime
 from types import SimpleNamespace
@@ -209,7 +210,7 @@ def test_cold_weather_state_is_not_updated_when_notification_fails():
     set_value.assert_not_called()
 
 
-def test_main_evaluates_forecast_window_from_current_local_hour():
+def test_main_evaluates_forecast_window_from_current_local_hour(caplog):
     forecast = {
         "utc_offset_seconds": -5 * 60 * 60,
         "hourly": {
@@ -223,6 +224,7 @@ def test_main_evaluates_forecast_window_from_current_local_hour():
         },
     }
     loaded_config = config(forecast_length=2)
+    caplog.set_level(logging.INFO)
     with (
         patch.object(main.config_loader, "load_config", return_value=loaded_config),
         patch.object(main, "get_forecast", return_value=forecast),
@@ -234,6 +236,7 @@ def test_main_evaluates_forecast_window_from_current_local_hour():
         main.main()
 
     decide_action.assert_called_once_with(48, 55, loaded_config)
+    assert "Forecast window (2 hours): minimum 48.0 F, maximum 55.0 F" in caplog.text
 
 
 def test_main_raises_when_current_forecast_hour_is_missing():

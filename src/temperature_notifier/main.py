@@ -155,6 +155,12 @@ def main() -> None:
     """Run one forecast evaluation and notification cycle."""
     config = config_loader.load_config()
     temperatures = _forecast_temperatures(get_forecast(), config.forecast_length)
+    logger.info(
+        "Forecast window (%d hours): minimum %.1f F, maximum %.1f F",
+        len(temperatures),
+        min(temperatures),
+        max(temperatures),
+    )
     decide_action(min(temperatures), max(temperatures), config)
 
 
