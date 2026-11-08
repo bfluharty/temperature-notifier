@@ -32,3 +32,11 @@ Feature: Battery action decisions
     When the temperature decision is evaluated
     Then Slack receives "No action needed"
     And the battery state is not updated
+
+  Scenario: Cold forecast triggers the fluids and paint reminder
+    Given batteries are inside
+    And the forecast window has a minimum of 35 and a maximum of 40
+    When the temperature decision is evaluated
+    Then Slack receives "Bring in fluids and paint"
+    And the battery state is not updated
+    And the cold-weather action state is marked as required

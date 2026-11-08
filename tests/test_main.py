@@ -15,6 +15,12 @@ def config(forecast_length=3, minimum=50, maximum=90):
     )
 
 
+def expected_notification(message):
+    if message == "No action needed":
+        return message
+    return f" {main.SLACK_HANDLE} {message}"
+
+
 def fixed_datetime(value):
     class FixedDatetime(real_datetime):
         @classmethod
@@ -87,21 +93,48 @@ def test_notify_slack_raises_when_slack_rejects_request():
 
 
 @pytest.mark.parametrize(
-    ("inside", "minimum", "maximum", "message", "new_state"),
+    (
+        "inside",
+        "cold_action_state",
+        "minimum",
+        "maximum",
+        "message",
+        "new_state",
+        "cold_new_state",
+    ),
     [
-        ("false", 49, 80, "Bring in batteries", "true"),
-        ("false", 50, 90, "No action needed", None),
-        ("true", 50, 90, "Take out batteries", "false"),
-        ("true", 49, 90, "No action needed", None),
+        ("false", "false", 49, 80, "Bring in batteries", "true", None),
+        ("false", "false", 50, 90, "No action needed", None, None),
+        ("true", "false", 50, 90, "Take out batteries", "false", None),
+        ("true", "false", 49, 90, "No action needed", None, None),
+        ("true", "false", 35, 40, "Bring in fluids and paint", None, "true"),
+        (
+            "false",
+            "false",
+            30,
+            80,
+            "Bring in batteries; Bring in fluids and paint",
+            "true",
+            "true",
+        ),
+        ("true", "true", 35, 40, "No action needed", None, None),
+        ("true", "true", 36, 40, "Take out fluids and paint", None, "false"),
     ],
 )
 def test_decide_action_transitions_only_when_a_boundary_is_crossed(
-    inside, minimum, maximum, message, new_state
+    inside, cold_action_state, minimum, maximum, message, new_state, cold_new_state
 ):
     notifications = []
     writes = []
     with (
-        patch.object(main, "get_value", return_value=inside),
+        patch.object(
+            main,
+            "get_value",
+            side_effect=lambda name, **_kwargs: {
+                main.BATTERIES_INSIDE_PARAMETER: inside,
+                main.COLD_WEATHER_ACTION_PARAMETER: cold_action_state,
+            }[name],
+        ),
         patch.object(main, "notify_slack", side_effect=notifications.append),
         patch.object(
             main,
@@ -111,10 +144,13 @@ def test_decide_action_transitions_only_when_a_boundary_is_crossed(
     ):
         main.decide_action(minimum, maximum, config())
 
-    assert notifications == [message]
-    assert writes == (
-        [] if new_state is None else [(main.BATTERIES_INSIDE_PARAMETER, new_state)]
-    )
+    assert notifications == [expected_notification(message)]
+    expected_writes = []
+    if new_state is not None:
+        expected_writes.append((main.BATTERIES_INSIDE_PARAMETER, new_state))
+    if cold_new_state is not None:
+        expected_writes.append((main.COLD_WEATHER_ACTION_PARAMETER, cold_new_state))
+    assert writes == expected_writes
 
 
 def test_decide_action_updates_state_after_successful_notification():
@@ -133,7 +169,14 @@ def test_decide_action_updates_state_after_successful_notification():
 
 def test_decide_action_does_not_update_state_when_notification_fails():
     with (
-        patch.object(main, "get_value", return_value="false"),
+        patch.object(
+            main,
+            "get_value",
+            side_effect=lambda name, **_kwargs: {
+                main.BATTERIES_INSIDE_PARAMETER: "false",
+                main.COLD_WEATHER_ACTION_PARAMETER: "false",
+            }[name],
+        ),
         patch.object(
             main, "notify_slack", side_effect=RuntimeError("Slack unavailable")
         ),
@@ -141,6 +184,27 @@ def test_decide_action_does_not_update_state_when_notification_fails():
     ):
         with pytest.raises(RuntimeError, match="Slack unavailable"):
             main.decide_action(49, 80, config())
+
+    set_value.assert_not_called()
+
+
+def test_cold_weather_state_is_not_updated_when_notification_fails():
+    with (
+        patch.object(
+            main,
+            "get_value",
+            side_effect=lambda name, **_kwargs: {
+                main.BATTERIES_INSIDE_PARAMETER: "true",
+                main.COLD_WEATHER_ACTION_PARAMETER: "false",
+            }[name],
+        ),
+        patch.object(
+            main, "notify_slack", side_effect=RuntimeError("Slack unavailable")
+        ),
+        patch.object(main, "set_value") as set_value,
+        pytest.raises(RuntimeError, match="Slack unavailable"),
+    ):
+        main.decide_action(35, 40, config())
 
     set_value.assert_not_called()
 

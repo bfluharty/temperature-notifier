@@ -1,7 +1,14 @@
 # Temperature Notifier
 
 A daily AWS Lambda that checks the local forecast and sends a Slack message when
-batteries should be moved indoors or outdoors.
+batteries should be moved indoors or outdoors, or when fluids and paint should be
+brought inside ahead of freezing weather.
+
+When the forecast window reaches 35°F or below, the notifier asks you to bring
+fluids and paint inside. Once the forecast window's minimum rises above 35°F, it
+asks you to take them back out. Each notification is sent only once per crossing
+of the threshold. If a battery action is also needed, both actions are combined
+in one Slack message.
 
 ## Deploy
 

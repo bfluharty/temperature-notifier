@@ -10,6 +10,7 @@ import requests
 from . import config_loader
 from .constants import (
     BATTERIES_INSIDE_PARAMETER,
+    COLD_WEATHER_ACTION_PARAMETER,
     FORECAST_TIMEZONE,
     FORECAST_URL,
     LATITUDE_PARAMETER,
@@ -17,6 +18,8 @@ from .constants import (
     REQUEST_TIMEOUT_SECONDS,
     SLACK_HANDLE,
     SLACK_WEBHOOK_PARAMETER,
+    STATE_ACTION_NOT_REQUIRED,
+    STATE_ACTION_REQUIRED,
     STATE_INSIDE,
     STATE_OUTSIDE,
     TEMPERATURE_UNIT,
@@ -98,12 +101,12 @@ def _action_for_conditions(
     if inside_state == STATE_OUTSIDE and (
         minimum < lower_bound or maximum > upper_bound
     ):
-        return f" {SLACK_HANDLE} Bring in batteries", STATE_INSIDE
+        return "Bring in batteries", STATE_INSIDE
 
     if inside_state == STATE_INSIDE and (
         minimum >= lower_bound and maximum <= upper_bound
     ):
-        return f" {SLACK_HANDLE} Take out batteries", STATE_OUTSIDE
+        return "Take out batteries", STATE_OUTSIDE
 
     return "No action needed", None
 
@@ -113,18 +116,39 @@ def decide_action(
 ) -> None:
     """Notify Slack and persist state when the temperature requires a transition."""
     inside_state = get_value(BATTERIES_INSIDE_PARAMETER, with_decryption=False)
-    message, next_state = _action_for_conditions(
+    cold_action_state = get_value(COLD_WEATHER_ACTION_PARAMETER, with_decryption=False)
+    battery_action, next_battery_state = _action_for_conditions(
         inside_state, today_min_temp, today_max_temp, config
+    )
+    actions = [] if battery_action == "No action needed" else [battery_action]
+
+    next_cold_action_state = None
+    if cold_action_state == STATE_ACTION_NOT_REQUIRED and today_min_temp <= 35:
+        actions.append("Bring in fluids and paint")
+        next_cold_action_state = STATE_ACTION_REQUIRED
+    elif cold_action_state == STATE_ACTION_REQUIRED and today_min_temp > 35:
+        actions.append("Take out fluids and paint")
+        next_cold_action_state = STATE_ACTION_NOT_REQUIRED
+
+    message = (
+        f" {SLACK_HANDLE} " + "; ".join(actions)
+        if actions
+        else "No action needed"
     )
 
     # Persist state only after Slack accepts the notification. This prevents a
     # failed notification from suppressing a later retry.
     notify_slack(message)
-    if next_state is not None:
-        set_value(BATTERIES_INSIDE_PARAMETER, next_state)
-        logger.info("Battery state changed to %s", next_state)
+    if next_battery_state is not None:
+        set_value(BATTERIES_INSIDE_PARAMETER, next_battery_state)
+        logger.info("Battery state changed to %s", next_battery_state)
     else:
         logger.info("No battery state change required")
+    if next_cold_action_state is not None:
+        set_value(COLD_WEATHER_ACTION_PARAMETER, next_cold_action_state)
+        logger.info("Cold-weather action state changed to %s", next_cold_action_state)
+    else:
+        logger.info("No cold-weather action state change required")
 
 
 def main() -> None:

@@ -11,6 +11,7 @@ scenarios("features/battery_actions.feature")
 def _context():
     return {
         "state": None,
+        "cold_action_state": "false",
         "minimum": None,
         "maximum": None,
         "messages": [],
@@ -51,27 +52,53 @@ def forecast_window(request, minimum, maximum):
 @when("the temperature decision is evaluated")
 def evaluate_decision(request, monkeypatch):
     context = request.node._battery_context
-    monkeypatch.setattr(main, "get_value", lambda _name, **_kwargs: context["state"])
+    monkeypatch.setattr(
+        main,
+        "get_value",
+        lambda name, **_kwargs: (
+            context["state"]
+            if name == main.BATTERIES_INSIDE_PARAMETER
+            else context["cold_action_state"]
+        ),
+    )
     monkeypatch.setattr(
         main, "notify_slack", lambda message: context["messages"].append(message)
     )
     monkeypatch.setattr(
-        main, "set_value", lambda _name, value: context["writes"].append(value)
+        main,
+        "set_value",
+        lambda name, value: context["writes"].append((name, value)),
     )
     main.decide_action(context["minimum"], context["maximum"], context["config"])
 
 
 @then(parsers.parse('Slack receives "{message}"'))
 def slack_message(request, message):
-    assert request.node._battery_context["messages"] == [message]
+    if message == "No action needed":
+        expected = message
+    else:
+        expected = f" {main.SLACK_HANDLE} {message}"
+    assert request.node._battery_context["messages"] == [expected]
 
 
 @then(parsers.parse("the battery state is updated to {state}"))
 def state_updated(request, state):
     expected = {"inside": "true", "outside": "false"}[state]
-    assert request.node._battery_context["writes"] == [expected]
+    assert request.node._battery_context["writes"] == [
+        (main.BATTERIES_INSIDE_PARAMETER, expected)
+    ]
 
 
 @then("the battery state is not updated")
 def state_not_updated(request):
-    assert request.node._battery_context["writes"] == []
+    assert not any(
+        name == main.BATTERIES_INSIDE_PARAMETER
+        for name, _value in request.node._battery_context["writes"]
+    )
+
+
+@then("the cold-weather action state is marked as required")
+def cold_weather_state_updated(request):
+    assert request.node._battery_context["writes"] == [
+        (main.COLD_WEATHER_ACTION_PARAMETER, "true")
+    ]

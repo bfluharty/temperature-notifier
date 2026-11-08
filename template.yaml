@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Scheduled temperature-based battery notification.
+Description: Scheduled temperature-based battery and cold-weather notifications.
 
 Parameters:
   ScheduleTimeZone:
@@ -31,7 +31,9 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ssm:PutParameter
-              Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/temperature-notifier/is-inside
+              Resource:
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/temperature-notifier/is-inside
+                - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/temperature-notifier/cold-weather-action-required
       Events:
         DailyTemperatureCheck:
           Type: ScheduleV2
@@ -41,6 +43,14 @@ Resources:
             FlexibleTimeWindow:
               Mode: 'OFF'
             State: ENABLED
+
+  ColdWeatherActionState:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /temperature-notifier/cold-weather-action-required
+      Type: String
+      Value: 'false'
+      Description: Whether the cold-weather fluids and paint reminder has been sent.
 
   TemperatureNotifierLogGroup:
     Type: AWS::Logs::LogGroup
